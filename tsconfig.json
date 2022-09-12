@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "module": "esnext",
+        "baseUrl": "./",
+        "paths": {
+            "*": ["types/*"]
+        },
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true
+    },
+    "ts-node": {
+        "esm": true,
+        "compilerOptions": {
+            "module": "esnext",
+        }
+    }
+}
