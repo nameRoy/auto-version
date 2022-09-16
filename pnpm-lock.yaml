@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@types/inquirer': ^9.0.1
   '@types/node': ^18.7.15
+  chalk: ^5.0.1
   commander: ^9.4.0
   execa: ^6.1.0
   inquirer: ^9.1.1
@@ -12,6 +13,7 @@ specifiers:
 dependencies:
   '@types/inquirer': 9.0.1
   '@types/node': 18.7.15
+  chalk: 5.0.1
   commander: 9.4.0
   execa: 6.1.0
   inquirer: 9.1.1
