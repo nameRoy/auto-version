@@ -73,7 +73,9 @@ class AutoVersion {
                 temp[2] = "1";
                 return temp.join(".") + SUFFIX;
             }
-            return baseNextVersion;
+            const temp = baseNextVersion.split("-")[0].split(".");
+            temp[2] = "0"
+            return temp.join(".")
         }
         if (branchName === "release") {
             const temp = baseNextVersion.split(".");
@@ -142,12 +144,119 @@ async function start() {
     async function step1() {
         spinner.start("升级 master 版本号中")
         await AV.updatePackageJson("masterNextVersion");
+        await execaCommand(`git add package.json`)
+        await execaCommand(`git commit -m version(版本更新):版本更新至${AV.get("masterNextVersion")}`)
+        await execaCommand(`git push`)
         spinner.text = `升级 master 版本号成功,新版本号：${$infoStr(AV.get("masterNextVersion"))}`;
         spinner.succeed();
         spinner.start("开始打tag发版本")
-        // execaCommand()
+        await execaCommand(`git tag -a v${AV.get("masterNextVersion")} -m "${Date.now()}"`)
+        await execaCommand(`git push origin v${AV.get("masterNextVersion")}`)
+        spinner.succeed(`已将 ${$infoStr("v" + AV.get("masterNextVersion"))} 推送到远程`);
     }
-    step1();
-
+    async function step2() {
+        spinner.start("开始建立 master 快照")
+        await AV.updatePackageJson("masterNextSnapshotVersion");
+        spinner.succeed(`master 快照版本建立完成,快照版本号：${$infoStr(AV.get("masterNextSnapshotVersion"))}`);
+    }
+    async function step3() {
+        const getFixBranchName = (base: Exclude<versionKey, "masterNextSnapshotVersion" | "releaseVersion">) => {
+            const temp = AV.get(base).split(".");
+            temp[2] = "x";
+            return `hotfix/${temp.join(".")}`
+        }
+        spinner.start(`开始建立基于${$infoStr(AV.get("masterNextSnapshotVersion"))}版本的热修复分支`)
+        const fixBranchName = getFixBranchName("masterNextVersion");
+        await execaCommand(`git checkout -b ${fixBranchName}`);
+        await execaCommand(`git add package.json`)
+        await execaCommand(`git commit -m version(版本更新):版本更新至${AV.get("masterNextSnapshotVersion")}`)
+        await execaCommand(`git push --set-upstream origin ${fixBranchName}`);
+        spinner.succeed(`建立热修复分支成功,热修复分支名：${$infoStr(fixBranchName)}`);
+        const { isDeletePreFixBranch } = await inquirer.prompt([
+            {
+                name: "isDeletePreFixBranch",
+                type: "confirm",
+                message: "是否自动删除本地及远程的上一版本热修复分支?",
+                default: "y",
+            },
+        ]);
+        if (isDeletePreFixBranch) {
+            spinner.start("正在删除本地的上一版本热修复分支")
+            const fixBranchName = getFixBranchName("baseVersion");
+            try {
+                await execaCommand(`git branch -d ${fixBranchName}`);
+                spinner.succeed(`本地的上一版本热修复分支 ${$infoStr(fixBranchName)} 删除成功`)
+            } catch (error) {
+                spinner.fail(chalk.bgRed(`本地的上一版本热修复分支 ${$infoStr(fixBranchName)} 删除失败`))
+                console.log(error);
+            }
+            spinner.start("正在删除远程的上一版本热修复分支")
+            try {
+                await execaCommand(`git push origin :${fixBranchName}`)
+                spinner.succeed(`远程的上一版本热修复分支 ${$infoStr(fixBranchName)} 删除成功`)
+            } catch (error) {
+                spinner.fail(chalk.bgRed(`远程的上一版本热修复分支 ${$infoStr(fixBranchName)} 删除失败`))
+                console.log(error);
+            }
+        }
+    }
+    async function step4() {
+        spinner.start("开始升级 release 分支快照版本号")
+        try {
+            await execaCommand(`git checkout release`)
+            await AV.updatePackageJson("releaseVersion")
+            await execaCommand(`git add package.json`)
+            await execaCommand(`git commit -m version(版本更新):版本更新至${AV.get("releaseVersion")}`)
+            await execaCommand(`git push --set-upstream origin release`);
+            spinner.succeed(`升级 release 分支快照版本号成功,快照版本号：${$infoStr(AV.get("releaseVersion"))}`)
+        } catch (error) {
+            spinner.fail(chalk.bgRed("升级 release 分支快照版本号失败"))
+            console.log(error)
+        }
+    }
+    async function step5() {
+        const getDevBranchName = (base: Exclude<versionKey, "baseVersion" | "masterNextSnapshotVersion">) => {
+            const temp = AV.get(base).split(".");
+            temp[2] = "x";
+            return `dev/${temp.join(".")}`
+        }
+        spinner.start(`开始建立下一版本的开发分支`)
+        const devBranchName = getDevBranchName("releaseVersion");
+        await execaCommand(`git checkout -b ${devBranchName}`);
+        await execaCommand(`git push --set-upstream origin ${devBranchName}`);
+        spinner.succeed(`建立下一版本的开发分支成功,开发分支名：${$infoStr(devBranchName)}`);
+        const { isDeletePreDevBranch } = await inquirer.prompt([
+            {
+                name: "isDeletePreDevBranch",
+                type: "confirm",
+                message: "是否自动删除本地及远程的上一版本开发分支?",
+                default: "n",
+            },
+        ]);
+        if (isDeletePreDevBranch) {
+            spinner.start("正在删除本地的上一版本开发分支")
+            const devBranchName = getDevBranchName("masterNextVersion");
+            try {
+                await execaCommand(`git branch -d ${devBranchName}`);
+                spinner.succeed(`本地的上一版本开发分支 ${$infoStr(devBranchName)} 删除成功`)
+            } catch (error) {
+                spinner.fail(chalk.bgRed(`本地的上一版本开发分支 ${$infoStr(devBranchName)} 删除失败`))
+                console.log(error);
+            }
+            spinner.start("正在删除远程的上一版本开发分支")
+            try {
+                await execaCommand(`git push origin :${devBranchName}`)
+                spinner.succeed(`远程的上一版本开发分支 ${$infoStr(devBranchName)} 删除成功`)
+            } catch (error) {
+                spinner.fail(chalk.bgRed(`远程的上一版本开发分支 ${$infoStr(devBranchName)} 删除失败`))
+                console.log(error);
+            }
+        }
+    }
+    await step1();
+    await step2();
+    await step3();
+    await step4();
+    await step5();
 }
 start();
