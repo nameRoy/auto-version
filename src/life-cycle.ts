@@ -5,7 +5,7 @@ import inquirer from "inquirer";
 import ora from "ora";
 
 import { AutoVersion } from "./auto-version.js"
-import createLogger from "./info-printer.js";
+import { createLogger } from "./info-printer.js";
 const logger = createLogger();
 const spinner = ora();
 
@@ -31,7 +31,6 @@ export class LifeCycle {
             },
         ]);
         if (step0) {
-            console.log(this.AV)
             const AV = this.AV;
             const curPackageVersion = await AV.getCurPackageVersion();
             const { masterBaseVersion } = await inquirer.prompt([

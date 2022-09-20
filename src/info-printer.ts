@@ -13,11 +13,10 @@ const color: TColor = {
 type ILog = {
     [k in keyof TColor]: (info: string) => string;
 };
-function createLogger(): ILog {
+export function createLogger(): ILog {
     const res = {};
     Object.entries(color).forEach(([key, value]) => {
         res[key] = (info) => chalk.hex(value)(info)
     })
     return res as ILog
 }
-export default createLogger
