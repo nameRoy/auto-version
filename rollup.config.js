@@ -20,7 +20,10 @@ const tsPlugin = ts({
 const commonConf = {
   input: getPath('./src/index.ts'),
   plugins:[
-    resolve(extensions),
+    resolve({
+      exportConditions:["node"],
+      extensions
+    }),
     tsPlugin,
     commonjs(),
     json()
@@ -30,10 +33,9 @@ const commonConf = {
 const outputMap = [
   {
     file: "lib/index.js",
-    format: "iife",
+    format: "es",
   }
 ]
-
 
 const buildConf = options => Object.assign({}, commonConf, options)
 
